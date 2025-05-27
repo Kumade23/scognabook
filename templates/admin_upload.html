@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Upload Book</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 20px; background-color: #f0f2f5; }
+        .container { width: 500px; padding: 30px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; font-size: 1.5em; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input[type="text"], input[type="file"] { 
+            width: 100%; 
+            margin-bottom: 15px; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+        }
+        input[type="file"] { padding: 6px; } /* Slightly less padding for file inputs */
+        button[type="submit"] { 
+            width: 100%; 
+            padding: 12px; 
+            background-color: #28a745; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 16px; 
+            font-weight: bold;
+        }
+        button[type="submit"]:hover { background-color: #218838; }
+        .message { margin-top: 20px; text-align: center; font-size: 14px; padding: 10px; border-radius: 4px; }
+        .message.success { background-color: #e6ffed; border: 1px solid #b7ebc9; color: #2f6f4f; }
+        .message.error { background-color: #ffebee; border: 1px solid #f5c6cb; color: #b71c1c; }
+        p { text-align: center; margin-top: 20px; }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Upload New Book</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div>
+                <label for="title">Title:</label>
+                <input type="text" id="title" name="title" required>
+            </div>
+            <div>
+                <label for="author">Author:</label>
+                <input type="text" id="author" name="author">
+            </div>
+            <div>
+                <label for="book_file">Book PDF:</label>
+                <input type="file" id="book_file" name="book_file" accept=".pdf" required>
+            </div>
+            <div>
+                <label for="cover_image_file">Cover Image (Optional):</label>
+                <input type="file" id="cover_image_file" name="cover_image_file" accept="image/*">
+            </div>
+            <button type="submit">Upload Book</button>
+        </form>
+        <div id="message" class="message" style="display: none;"></div> <!-- Hidden by default -->
+        <p><a href="/">Back to Library</a></p>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = ''; 
+            messageDiv.style.display = 'none'; 
+            messageDiv.className = 'message'; // Reset classes
+
+            // Basic client-side validation for file types (optional but good practice)
+            const bookFile = formData.get('book_file');
+            if (bookFile && bookFile.name && !bookFile.name.toLowerCase().endsWith('.pdf')) {
+                messageDiv.textContent = 'Error: Book file must be a PDF.';
+                messageDiv.className = 'message error';
+                messageDiv.style.display = 'block';
+                return;
+            }
+            const coverFile = formData.get('cover_image_file');
+            if (coverFile && coverFile.name && !coverFile.type.startsWith('image/')) {
+                 messageDiv.textContent = 'Error: Cover file must be an image.';
+                 messageDiv.className = 'message error';
+                 messageDiv.style.display = 'block';
+                 return;
+            }
+
+
+            const response = await fetch('/admin/upload_book', {
+                method: 'POST',
+                body: formData 
+                // No 'Content-Type' header for FormData with fetch, browser sets it with boundary
+            });
+
+            const result = await response.json();
+            messageDiv.style.display = 'block'; // Show message div
+
+            if (response.ok) {
+                messageDiv.textContent = 'Success: ' + result.message + (result.book_id ? ` (Book ID: ${result.book_id})` : '');
+                messageDiv.className = 'message success';
+                form.reset(); 
+            } else {
+                messageDiv.textContent = 'Error: ' + (result.message || 'Upload failed. Please check server logs.');
+                messageDiv.className = 'message error';
+            }
+        });
+    </script>
+</body>
+</html>
