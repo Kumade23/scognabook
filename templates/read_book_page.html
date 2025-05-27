@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Read Book</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <style>
+        body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
+        header { padding: 1rem; background-color: #fff; border-bottom: 1px solid #e5e7eb; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50;}
+        .main-container { display: flex; flex-grow: 1; overflow: hidden; /* Handles overflow between viewer and sidebar */ }
+        #pdf-viewer-section { flex-grow: 1; padding: 1rem; display: flex; justify-content: center; align-items: center; background-color: #e9ecef; }
+        #pdf-viewer-container { width: 100%; max-width: 1000px; height: calc(100vh - 80px); /* Adjust based on header height */ box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        #pdf-viewer { width: 100%; height: 100%; border: none; }
+        #annotations-section {
+            width: 350px; /* Fixed width for sidebar */
+            min-width: 300px; /* Min width before it gets too cramped */
+            max-width: 40%; /* Max width relative to parent */
+            padding: 1.5rem;
+            background-color: #fff;
+            border-left: 1px solid #e5e7eb;
+            overflow-y: auto; /* Allow scrolling for annotations list */
+            height: calc(100vh - 65px); /* Adjust based on header height */
+        }
+        .back-link { display: inline-block; margin-top: 0.5rem; color: #3b82f6; }
+        .back-link:hover { text-decoration: underline; }
+        #book-title { font-size: 1.5rem; color: #1f2937; }
+        #error-message { padding: 1rem; color: #ef4444; background-color: #fee2e2; border: 1px solid #fca5a5; border-radius: 4px; margin: 1rem auto; max-width: 600px; text-align: center; }
+        
+        /* Form and list styling */
+        #annotationForm label { margin-bottom: 0.25rem; }
+        #annotationForm input, #annotationForm select, #annotationForm textarea {
+            margin-bottom: 0.75rem;
+        }
+        #annotationsList .annotation-item {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        #annotationsList .annotation-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .color-preview { display: inline-block; width: 1em; height: 1em; border-radius: 50%; margin-left: 5px; vertical-align: middle; border: 1px solid #ccc;}
+
+    </style>
+</head>
+<body>
+    <header>
+        <h1 id="book-title" class="font-bold">Loading book...</h1>
+        <a href="/" class="back-link">Back to Library</a>
+    </header>
+
+    <div class="main-container">
+        <section id="pdf-viewer-section">
+            <div id="pdf-viewer-container">
+                <iframe id="pdf-viewer"></iframe>
+            </div>
+        </section>
+
+        <aside id="annotations-section">
+            <h2 class="text-xl font-semibold mb-4">Notes & Highlights</h2>
+            
+            <form id="annotationForm" class="mb-6 p-4 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
+                <input type="hidden" id="annotationId" name="annotationId">
+                <div>
+                    <label for="annotationPage" class="block text-sm font-medium text-gray-700">Page Number:</label>
+                    <input type="number" id="annotationPage" name="page_number" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" required>
+                </div>
+                <div class="mt-3">
+                    <label for="annotationType" class="block text-sm font-medium text-gray-700">Type:</label>
+                    <select id="annotationType" name="type" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="note">Note</option>
+                        <option value="highlight">Highlight</option>
+                    </select>
+                </div>
+                <div class="mt-3">
+                    <label for="annotationText" class="block text-sm font-medium text-gray-700">Content / Selected Text:</label>
+                    <textarea id="annotationText" name="text_content" rows="4" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-blue-500 focus:border-blue-500" required></textarea>
+                </div>
+                <div class="mt-3">
+                    <label for="annotationColor" class="block text-sm font-medium text-gray-700">Color (for highlights):</label>
+                    <input type="color" id="annotationColor" name="color" value="#FFFF00" class="mt-1 block w-full h-10 border-gray-300 rounded-md shadow-sm">
+                </div>
+                <button type="submit" id="saveAnnotationBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Save Annotation</button>
+            </form>
+
+            <div id="annotationsList" class="space-y-3">
+                <!-- Annotations will be dynamically inserted here -->
+            </div>
+        </aside>
+    </div>
+    
+    <div id="error-message" style="display: none;"></div>
+
+    <script>
+        let currentBookId = null; // Store bookId globally for annotation functions
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const bookTitleEl = document.getElementById('book-title');
+            const pdfViewerEl = document.getElementById('pdf-viewer');
+            const errorMessageEl = document.getElementById('error-message');
+            const viewerContainer = document.getElementById('pdf-viewer-container'); // The direct parent of iframe
+            const annotationsSection = document.getElementById('annotations-section');
+            
+            const params = new URLSearchParams(window.location.search);
+            currentBookId = params.get('book_id'); // Set global currentBookId
+
+            if (!currentBookId) {
+                bookTitleEl.textContent = 'Error';
+                errorMessageEl.textContent = 'No book ID provided in the URL.';
+                errorMessageEl.style.display = 'block';
+                if(viewerContainer) viewerContainer.style.display = 'none';
+                if(annotationsSection) annotationsSection.style.display = 'none';
+                return;
+            }
+
+            try {
+                // Check session first to ensure user is logged in
+                // This is important because the /book_details endpoint is @login_required
+                // and might redirect or return 401 before we can fetch book details.
+                const sessionResponse = await fetch('/check_session');
+                if (!sessionResponse.ok) {
+                     // If session check itself fails (e.g. network error)
+                    throw new Error('Session check failed. Are you connected?');
+                }
+                const sessionData = await sessionResponse.json();
+                if (!sessionData.logged_in) {
+                    // If user is not logged in, redirect or show message.
+                    // The @login_required on /book_details should handle actual redirection for that route,
+                    // but this client-side check can provide a faster, more user-friendly experience.
+                    errorMessageEl.textContent = 'You must be logged in to view this book. Redirecting to login...';
+                    errorMessageEl.style.display = 'block';
+                    if(viewerContainer) viewerContainer.style.display = 'none';
+                    setTimeout(() => { window.location.href = '/login-page'; }, 2000);
+                    return;
+                }
+
+
+                const response = await fetch(`/book_details/${bookId}`);
+                if (!response.ok) {
+                    let errorMsg = `Error fetching book details: ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.message || errorMsg;
+                    } catch (e) { /* Ignore if response is not JSON */ }
+                    throw new Error(errorMsg);
+                }
+                const bookDetails = await response.json();
+
+                bookTitleEl.textContent = bookDetails.title || 'Untitled Book';
+                document.title = `Read: ${bookDetails.title || 'Book'}`; 
+                
+                if (bookDetails.book_file_url) {
+                    pdfViewerEl.setAttribute('src', bookDetails.book_file_url);
+                    viewerContainer.style.display = 'block';
+                    errorMessageEl.style.display = 'none';
+                    // After successfully loading book details and PDF, fetch annotations
+                    await fetchAndDisplayAnnotations(currentBookId);
+                } else {
+                    throw new Error('Book file URL not found in the details.');
+                }
+
+            } catch (error) {
+                console.error('Failed to load book:', error);
+                bookTitleEl.textContent = 'Error Loading Book';
+                errorMessageEl.textContent = error.message;
+                errorMessageEl.style.display = 'block';
+                if(viewerContainer) viewerContainer.style.display = 'none';
+                if(annotationsSection) annotationsSection.style.display = 'none';
+            }
+        });
+
+        // --- Annotation Functions ---
+
+        async function fetchAndDisplayAnnotations(bookId) {
+            const annotationsListDiv = document.getElementById('annotationsList');
+            if (!annotationsListDiv) return;
+            annotationsListDiv.innerHTML = ''; // Clear current list
+
+            try {
+                const response = await fetch(`/book/${bookId}/annotations`);
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+                }
+                const annotations = await response.json();
+
+                if (annotations.length === 0) {
+                    annotationsListDiv.innerHTML = '<p class="text-gray-500 text-sm">No annotations yet for this book.</p>';
+                    return;
+                }
+
+                annotations.forEach(ann => {
+                    const colorPreview = ann.type === 'highlight' && ann.color ? 
+                        `<span class="color-preview" style="background-color: ${ann.color};"></span>` : '';
+                    const annotationEl = `
+                        <div class="annotation-item p-3 bg-white rounded-md shadow-sm border border-gray-200" data-annotation-id="${ann.id}">
+                            <p class="font-medium text-gray-800">
+                                Page ${ann.page_number || 'N/A'} 
+                                <span class="text-xs font-semibold uppercase p-1 rounded ${ann.type === 'note' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}">${ann.type}</span>
+                                ${colorPreview}
+                            </p>
+                            <p class="text-sm text-gray-600 my-1">${ann.text_content || 'No content'}</p>
+                            <small class="text-gray-400 text-xs">Last updated: ${new Date(ann.updated_at).toLocaleString()}</small>
+                            <div class="mt-2 space-x-2">
+                                <button class="edit-btn text-xs text-blue-500 hover:text-blue-700" data-id="${ann.id}">Edit</button>
+                                <button class="delete-btn text-xs text-red-500 hover:text-red-700" data-id="${ann.id}">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                    annotationsListDiv.insertAdjacentHTML('beforeend', annotationEl);
+                });
+
+                // Add event listeners for new edit/delete buttons
+                document.querySelectorAll('.edit-btn').forEach(btn => btn.addEventListener('click', handleEditAnnotation));
+                document.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', handleDeleteAnnotation));
+
+            } catch (error) {
+                console.error('Error fetching annotations:', error);
+                annotationsListDiv.innerHTML = `<p class="text-red-500 text-sm">Error loading annotations: ${error.message}</p>`;
+            }
+        }
+        
+        // Placeholder for actual selection capture
+        function attemptCaptureSelection() {
+            const pdfIframe = document.getElementById('pdf-viewer');
+            try {
+                const selection = pdfIframe.contentWindow.document.getSelection().toString();
+                if (selection && selection.trim() !== "") {
+                    document.getElementById('annotationText').value = selection.trim();
+                    document.getElementById('annotationType').value = 'highlight'; // Default to highlight if text is selected
+                }
+            } catch (e) {
+                console.warn("Could not access iframe content for text selection. This is common due to cross-origin restrictions if the PDF is not served from the same domain, or if the PDF viewer doesn't support it.", e);
+            }
+        }
+        // Add listener to PDF viewer to attempt text capture (might not work)
+        const pdfViewerEl = document.getElementById('pdf-viewer');
+        if(pdfViewerEl) {
+            pdfViewerEl.addEventListener('mouseup', attemptCaptureSelection); // Or 'select' event if supported by viewer
+            pdfViewerEl.addEventListener('touchend', attemptCaptureSelection); // For touch devices
+        }
+
+
+        document.getElementById('annotationForm').addEventListener('submit', async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const annotationId = form.annotationId.value;
+            const pageNumber = form.page_number.value;
+            const type = form.type.value;
+            const textContent = form.text_content.value;
+            const color = form.color.value;
+
+            const data = {
+                page_number: pageNumber ? parseInt(pageNumber) : null,
+                type: type,
+                text_content: textContent,
+                color: type === 'highlight' ? color : null, // Only send color for highlights
+                // coordinates will be null for now as we are not capturing them
+            };
+
+            const url = annotationId ? `/annotations/${annotationId}` : `/book/${currentBookId}/annotations`;
+            const method = annotationId ? 'PUT' : 'POST';
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json(); // Try to parse JSON regardless of response.ok
+                if (!response.ok) {
+                    throw new Error(result.message || `HTTP error! status: ${response.status}`);
+                }
+                
+                form.reset(); // Clear form
+                form.annotationId.value = ''; // Clear hidden ID
+                document.getElementById('saveAnnotationBtn').textContent = 'Save Annotation';
+                await fetchAndDisplayAnnotations(currentBookId); // Refresh list
+                alert(`Annotation ${annotationId ? 'updated' : 'saved'} successfully!`);
+
+            } catch (error) {
+                console.error(`Error ${annotationId ? 'updating' : 'saving'} annotation:`, error);
+                alert(`Error: ${error.message}`);
+            }
+        });
+
+        function handleEditAnnotation(event) {
+            const annotationId = event.target.dataset.id;
+            const annotationItem = event.target.closest('.annotation-item');
+            
+            // Extract data from the annotation item or fetch it again if easier
+            // For simplicity, let's assume we can parse from display (not robust for complex data)
+            const pageText = annotationItem.querySelector('p:nth-child(1)').textContent; // "Page X (type)"
+            const pageNumberMatch = pageText.match(/Page (\d+)/);
+            const typeMatch = pageText.match(/\(([^)]+)\)/);
+            
+            const textContent = annotationItem.querySelector('p:nth-child(2)').textContent;
+            
+            // Color might need to be fetched if not stored directly on element
+            // For now, let's assume we can get it or default
+            const colorSpan = annotationItem.querySelector('.color-preview');
+            const color = colorSpan ? rgbToHex(colorSpan.style.backgroundColor) : '#FFFF00';
+
+
+            document.getElementById('annotationId').value = annotationId;
+            document.getElementById('annotationPage').value = pageNumberMatch ? pageNumberMatch[1] : '';
+            document.getElementById('annotationType').value = typeMatch ? typeMatch[1].toLowerCase() : 'note';
+            document.getElementById('annotationText').value = textContent;
+            document.getElementById('annotationColor').value = color;
+            document.getElementById('saveAnnotationBtn').textContent = 'Update Annotation';
+            
+            document.getElementById('annotationPage').focus(); // Scroll to form and focus
+        }
+        
+        // Helper to convert rgb to hex for color input
+        function rgbToHex(rgb) {
+            if (!rgb) return '#FFFF00'; // Default if no color
+            let sep = rgb.indexOf(",") > -1 ? "," : " ";
+            rgb = rgb.substr(4).split(")")[0].split(sep);
+            let r = (+rgb[0]).toString(16),
+                g = (+rgb[1]).toString(16),
+                b = (+rgb[2]).toString(16);
+            if (r.length == 1) r = "0" + r;
+            if (g.length == 1) g = "0" + g;
+            if (b.length == 1) b = "0" + b;
+            return "#" + r + g + b;
+        }
+
+
+        async function handleDeleteAnnotation(event) {
+            const annotationId = event.target.dataset.id;
+            if (!confirm('Are you sure you want to delete this annotation?')) {
+                return;
+            }
+            try {
+                const response = await fetch(`/annotations/${annotationId}`, { method: 'DELETE' });
+                const result = await response.json(); // Try to parse JSON
+                if (!response.ok) {
+                    throw new Error(result.message || `HTTP error! status: ${response.status}`);
+                }
+                await fetchAndDisplayAnnotations(currentBookId); // Refresh list
+                alert('Annotation deleted successfully!');
+            } catch (error) {
+                console.error('Error deleting annotation:', error);
+                alert(`Error: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

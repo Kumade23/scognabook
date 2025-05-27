@@ -56,7 +56,9 @@
               </div>
             </label>
             <button
+              id="bookmark-button"
               class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 bg-[#f0f2f5] text-[#111418] gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5"
+              style="display: none;" <!-- Hidden by default -->
             >
               <div class="text-[#111418]" data-icon="BookmarkSimple" data-size="20px" data-weight="regular">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" fill="currentColor" viewBox="0 0 256 256">
@@ -66,16 +68,22 @@
                 </svg>
               </div>
             </button>
+            <div id="auth-controls" class="flex items-center gap-2">
+                <!-- Links will be populated by JavaScript -->
+            </div>
             <div
+              id="user-avatar"
               class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
-              style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB3OLvOiJmxH2ASQutjuLbySVQeJ5Pp2NyFjSfxuWtb1qJJfR8hJKz73q00m1ySny1jewZDsC6XE4Y9kunoU6QeMOufJ9rKoFGI6cRxq25ONu6r5TSbN0_P56dmlpjTOgZwBXXVXI21TnM5zcioWcNL8WbkBQxrKrVdZa_mETPNsiEtMvxmdFtREBUmq03Ft49OXPQ5lPEIonlS7vbaJeJjl36eESI3shDb-hUcVmNB8J7SeQbcA-aer00yEyd78YZEghv_7aRKbOc");'
+              style='display: none; background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB3OLvOiJmxH2ASQutjuLbySVQeJ5Pp2NyFjSfxuWtb1qJJfR8hJKz73q00m1ySny1jewZDsC6XE4Y9kunoU6QeMOufJ9rKoFGI6cRxq25ONu6r5TSbN0_P56dmlpjTOgZwBXXVXI21TnM5zcioWcNL8WbkBQxrKrVdZa_mETPNsiEtMvxmdFtREBUmq03Ft49OXPQ5lPEIonlS7vbaJeJjl36eESI3shDb-hUcVmNB8J7SeQbcA-aer00yEyd78YZEghv_7aRKbOc");'
             ></div>
           </div>
         </header>
         <div class="px-40 flex flex-1 justify-center py-5">
           <div class="layout-content-container flex flex-col max-w-[960px] flex-1">
-            <div class="flex flex-wrap justify-between gap-3 p-4"><p class="text-[#111418] tracking-light text-[32px] font-bold leading-tight min-w-72">My Library</p></div>
-            <div class="px-4 py-3">
+            <div class="flex flex-wrap justify-between gap-3 p-4">
+                <p class="text-[#111418] tracking-light text-[32px] font-bold leading-tight min-w-72" id="library-title">My Library</p>
+            </div>
+            <div class="px-4 py-3" id="search-bar-container" style="display: none;"> <!-- Hidden by default -->
               <label class="flex flex-col min-w-40 h-12 w-full">
                 <div class="flex w-full flex-1 items-stretch rounded-lg h-full">
                   <div
@@ -98,8 +106,16 @@
                 </div>
               </label>
             </div>
-            <h2 class="text-[#111418] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">Books</h2>
-            <div class="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3 p-4">
+            <!-- Welcome message and auth prompt -->
+            <div class="px-4 py-3 text-center">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4" id="main-welcome-message">Welcome to Bookworm</h2>
+                <p class="text-gray-600" id="main-prompt-message">
+                    Please <a href="/login-page" class="text-blue-500 hover:underline">Login</a> or <a href="/signup-page" class="text-blue-500 hover:underline">Sign Up</a> to manage your library.
+                </p>
+            </div>
+            <h2 class="text-[#111418] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5" id="books-section-title" style="display: none;">Books</h2>
+            <div class="grid grid-cols-[repeat(auto-fit,minmax(158px,1fr))] gap-3 p-4" id="books-grid" style="display: none;">
+              <!-- Book items will remain here, but the section will be hidden/shown -->
               <div class="flex flex-col gap-3 pb-3">
                 <div
                   class="w-full bg-center bg-no-repeat aspect-[3/4] bg-cover rounded-lg"
@@ -225,5 +241,201 @@
         </div>
       </div>
     </div>
+    <script>
+        async function checkUserSession() {
+            const authControls = document.getElementById('auth-controls');
+            const bookmarkButton = document.getElementById('bookmark-button');
+            const userAvatar = document.getElementById('user-avatar');
+            const searchBarContainer = document.getElementById('search-bar-container'); // Existing search bar in the body
+            const headerSearchInput = document.querySelector('header input[placeholder="Search"]'); // Header search
+            const libraryTitle = document.getElementById('library-title');
+            const mainWelcomeMessage = document.getElementById('main-welcome-message');
+            const mainPromptMessage = document.getElementById('main-prompt-message');
+            const booksSectionTitle = document.getElementById('books-section-title');
+            const booksGrid = document.getElementById('books-grid');
+
+
+            try {
+                const response = await fetch('/check_session');
+                // It's possible for /check_session to return 401 if @login_required is strict and user is not logged in
+                // So we check for response.ok and also specific status codes if needed, or rely on JSON content.
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.logged_in) {
+                        let adminLink = '';
+                        if (data.user.id === 1) { // Check if user is admin
+                            adminLink = `<a href="/admin/upload-page" class="text-[#111418] hover:text-blue-600 text-sm font-bold ml-2">Upload Book</a>`;
+                        }
+                        authControls.innerHTML = `
+                            <span class="text-[#111418] text-sm font-medium mr-2">Hi, ${data.user.username}</span>
+                            <button id="logoutBtn" class="text-[#111418] hover:text-blue-600 text-sm font-bold">Logout</button>
+                            ${adminLink}`; // Add admin link here
+                        document.getElementById('logoutBtn').addEventListener('click', async () => {
+                            await fetch('/logout', { method: 'POST' });
+                            window.location.reload();
+                        });
+                        if(userAvatar) userAvatar.style.display = 'block'; // Show avatar
+                        if(bookmarkButton) bookmarkButton.style.display = 'flex';
+                        if(searchBarContainer) searchBarContainer.style.display = 'block'; // Show main search bar
+                        if(headerSearchInput) headerSearchInput.parentElement.parentElement.style.display = 'flex'; // Show header search bar
+
+                        if(libraryTitle) libraryTitle.textContent = `${data.user.username}'s Library`;
+                        if(mainWelcomeMessage) mainWelcomeMessage.textContent = 'Manage your books, add new ones, and find your next read.';
+                        if(mainPromptMessage) mainPromptMessage.style.display = 'none';
+                        if(booksSectionTitle) booksSectionTitle.style.display = 'block';
+                        if(booksGrid) {
+                            booksGrid.style.display = 'grid';
+                            fetchBooksAndDisplay(); // Call function to load books
+                        }
+
+                    } else {
+                        // This block will be executed if /check_session is accessible by unauthenticated users
+                        // and returns {logged_in: false}
+                        authControls.innerHTML = `
+                            <a href="/login-page" class="text-[#111418] hover:text-blue-600 text-sm font-bold">Login</a>
+                            <span class="text-gray-400">/</span>
+                            <a href="/signup-page" class="text-[#111418] hover:text-blue-600 text-sm font-bold">Sign Up</a>`;
+                        if(userAvatar) userAvatar.style.display = 'none';
+                        if(bookmarkButton) bookmarkButton.style.display = 'none';
+                        if(searchBarContainer) searchBarContainer.style.display = 'none';
+                        if(headerSearchInput) headerSearchInput.parentElement.parentElement.style.display = 'none';
+
+                        if(libraryTitle) libraryTitle.textContent = 'My Library';
+                        if(mainWelcomeMessage) mainWelcomeMessage.textContent = 'Welcome to Bookworm';
+                        if(mainPromptMessage) mainPromptMessage.style.display = 'block';
+                        if(booksSectionTitle) booksSectionTitle.style.display = 'none';
+                        if(booksGrid) booksGrid.style.display = 'none';
+                    }
+                } else {
+                     // This handles cases like 401 from @login_required on /check_session
+                    authControls.innerHTML = `
+                        <a href="/login-page" class="text-[#111418] hover:text-blue-600 text-sm font-bold">Login</a>
+                        <span class="text-gray-400">/</span>
+                        <a href="/signup-page" class="text-[#111418] hover:text-blue-600 text-sm font-bold">Sign Up</a>`;
+                    if(userAvatar) userAvatar.style.display = 'none';
+                    if(bookmarkButton) bookmarkButton.style.display = 'none';
+                    if(searchBarContainer) searchBarContainer.style.display = 'none';
+                    if(headerSearchInput) headerSearchInput.parentElement.parentElement.style.display = 'none';
+                    
+                    if(libraryTitle) libraryTitle.textContent = 'My Library';
+                    if(mainWelcomeMessage) mainWelcomeMessage.textContent = 'Welcome to Bookworm';
+                    if(mainPromptMessage) mainPromptMessage.style.display = 'block';
+                    if(booksSectionTitle) booksSectionTitle.style.display = 'none';
+                    if(booksGrid) booksGrid.style.display = 'none';
+                }
+            } catch (error) {
+                console.error("Error checking session:", error);
+                authControls.innerHTML = `
+                    <a href="/login-page" class="text-red-500 hover:text-red-700 text-sm font-bold">Login (Error)</a>`;
+                // Hide elements as a precaution
+                if(userAvatar) userAvatar.style.display = 'none';
+                if(bookmarkButton) bookmarkButton.style.display = 'none';
+                if(searchBarContainer) searchBarContainer.style.display = 'none';
+                if(headerSearchInput) headerSearchInput.parentElement.parentElement.style.display = 'none';
+
+                if(libraryTitle) libraryTitle.textContent = 'My Library';
+                if(mainWelcomeMessage) mainWelcomeMessage.textContent = 'Welcome to Bookworm';
+                if(mainPromptMessage) mainPromptMessage.style.display = 'block';
+                if(booksSectionTitle) booksSectionTitle.style.display = 'none';
+                if(booksGrid) booksGrid.style.display = 'none';
+            }
+        }
+
+        async function fetchBooksAndDisplay(searchTerm = '') { // Add searchTerm parameter
+            const booksGrid = document.getElementById('books-grid');
+            if (!booksGrid) return;
+            booksGrid.innerHTML = ''; // Clear previous books
+
+            let url = '/books';
+            if (searchTerm) {
+                url += `?q=${encodeURIComponent(searchTerm)}`;
+            }
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ message: `HTTP error! status: ${response.status}` }));
+                    throw new Error(errorData.message || `Error fetching books: ${response.status}`);
+                }
+                const books = await response.json();
+
+                if (books.length === 0) {
+                    if (searchTerm) {
+                        booksGrid.innerHTML = '<p class="col-span-full text-center text-gray-500">No books found matching your search.</p>';
+                    } else {
+                        booksGrid.innerHTML = '<p class="col-span-full text-center text-gray-500">Your library is empty. Admins can upload books.</p>';
+                    }
+                    return;
+                }
+
+                books.forEach(book => {
+                    const placeholderCover = 'https://via.placeholder.com/158x210.png?text=No+Cover'; // A generic placeholder
+                    const coverUrl = book.cover_image_url ? book.cover_image_url : placeholderCover;
+                    // Note: book_file_url is for the PDF itself, link to reading page is different
+                    const readBookPageUrl = `read_book_page.html?book_id=${book.id}`;
+
+
+                    const bookCard = `
+                        <div class="flex flex-col gap-3 pb-3 book-card-item" data-book-id="${book.id}">
+                            <a href="${readBookPageUrl}">
+                                <div class="w-full bg-center bg-no-repeat aspect-[3/4] bg-cover rounded-lg bg-gray-200" 
+                                     style="background-image: url('${coverUrl}');">
+                                    <!-- Fallback for accessibility or if background images are off -->
+                                    <img src="${coverUrl}" alt="Cover of ${book.title}" class="w-full aspect-[3/4] rounded-lg object-cover sr-only">
+                                </div>
+                            </a>
+                            <div>
+                                <p class="text-[#111418] text-base font-medium leading-normal truncate" title="${book.title}">${book.title}</p>
+                                <p class="text-[#60748a] text-sm font-normal leading-normal truncate" title="${book.author || 'Unknown Author'}">${book.author || 'Unknown Author'}</p>
+                            </div>
+                        </div>
+                    `;
+                    booksGrid.insertAdjacentHTML('beforeend', bookCard);
+                });
+
+            } catch (error) {
+                console.error('Failed to fetch books:', error);
+                booksGrid.innerHTML = `<p class="col-span-full text-center text-red-500">Error loading books: ${error.message}</p>`;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkUserSession(); // Initial check
+
+            // Library Search Bar Event Listener
+            const librarySearchContainer = document.getElementById('search-bar-container');
+            const librarySearchInput = librarySearchContainer.querySelector('input[placeholder="Search your library"]');
+            if (librarySearchInput && librarySearchContainer.firstChild.tagName === 'LABEL') {
+                const librarySearchForm = document.createElement('form');
+                // Move the existing label (which contains the input and its structure) into the form
+                librarySearchForm.appendChild(librarySearchContainer.firstChild);
+                librarySearchContainer.appendChild(librarySearchForm);
+
+                librarySearchForm.addEventListener('submit', (event) => {
+                    event.preventDefault(); 
+                    const searchTerm = librarySearchInput.value.trim();
+                    fetchBooksAndDisplay(searchTerm);
+                });
+            }
+
+            // Global Header Search Bar Event Listener
+            const globalSearchInput = document.querySelector('header input[placeholder="Search"]');
+            if (globalSearchInput) {
+                const globalSearchLabel = globalSearchInput.closest('label'); 
+                if (globalSearchLabel && globalSearchLabel.parentElement) {
+                    const globalSearchForm = document.createElement('form');
+                    // Insert the form before the label, then move the label into the form.
+                    globalSearchLabel.parentElement.insertBefore(globalSearchForm, globalSearchLabel);
+                    globalSearchForm.appendChild(globalSearchLabel);
+
+                    globalSearchForm.addEventListener('submit', (event) => {
+                        event.preventDefault();
+                        const searchTerm = globalSearchInput.value.trim();
+                        fetchBooksAndDisplay(searchTerm);
+                    });
+                }
+            }
+        });
+    </script>
   </body>
 </html>
