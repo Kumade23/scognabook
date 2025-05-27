@@ -6,25 +6,39 @@
     <title>Read Book</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <style>
-        body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; background-color: #f0f2f5; }
+        body { display: flex; flex-direction: column; min-height: 100vh; margin: 0; background-color: #f0f2f5; font-family: "Noto Sans", sans-serif; }
         header { padding: 1rem; background-color: #fff; border-bottom: 1px solid #e5e7eb; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 50;}
-        .main-container { display: flex; flex-grow: 1; overflow: hidden; /* Handles overflow between viewer and sidebar */ }
+        .main-container { display: flex; flex-direction: column; md:flex-row; flex-grow: 1; overflow: hidden; }
         #pdf-viewer-section { flex-grow: 1; padding: 1rem; display: flex; justify-content: center; align-items: center; background-color: #e9ecef; }
-        #pdf-viewer-container { width: 100%; max-width: 1000px; height: calc(100vh - 80px); /* Adjust based on header height */ box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
+        /* Adjusted height for PDF viewer, considering header and potential footer/margins */
+        #pdf-viewer-container { width: 100%; max-width: 1000px; height: calc(100vh - 80px); /* Default for larger screens */ box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden; }
         #pdf-viewer { width: 100%; height: 100%; border: none; }
+        
         #annotations-section {
-            width: 350px; /* Fixed width for sidebar */
-            min-width: 300px; /* Min width before it gets too cramped */
-            max-width: 40%; /* Max width relative to parent */
+            width: 100%; /* Full width on small screens */
+            md:width: 350px; /* Fixed width on medium screens and up */
+            md:min-width: 300px; 
+            md:max-width: 40%;
             padding: 1.5rem;
             background-color: #fff;
             border-left: 1px solid #e5e7eb;
             overflow-y: auto; /* Allow scrolling for annotations list */
-            height: calc(100vh - 65px); /* Adjust based on header height */
+            height: auto; /* Auto height on small screens (content dictates) */
+            md:height: calc(100vh - 65px); /* Fixed height on medium screens and up */
+        }
+        @media (max-width: 767px) { /* md breakpoint in Tailwind is 768px */
+            #pdf-viewer-container {
+                 height: 60vh; /* Or any other suitable height for smaller screens */
+            }
+            #annotations-section {
+                height: auto; /* Let content define height, or set a specific max-height */
+                max-height: 40vh; /* Example: Limit height on small screens */
+            }
         }
         .back-link { display: inline-block; margin-top: 0.5rem; color: #3b82f6; }
         .back-link:hover { text-decoration: underline; }
-        #book-title { font-size: 1.5rem; color: #1f2937; }
+        #book-title { font-size: 1.75rem; /* Increased size */ color: #1f2937; font-family: 'Newsreader', serif; }
+        #annotations-section h2 { font-family: 'Newsreader', serif; font-size: 1.5rem; /* Larger size */ }
         #error-message { padding: 1rem; color: #ef4444; background-color: #fee2e2; border: 1px solid #fca5a5; border-radius: 4px; margin: 1rem auto; max-width: 600px; text-align: center; }
         
         /* Form and list styling */
@@ -51,17 +65,17 @@
         <a href="/" class="back-link">Back to Library</a>
     </header>
 
-    <div class="main-container">
-        <section id="pdf-viewer-section">
+    <div class="main-container"> <!-- md:flex-row makes it row on medium screens and up -->
+        <section id="pdf-viewer-section" class="w-full md:w-auto"> <!-- Full width on small, auto on md+ -->
             <div id="pdf-viewer-container">
                 <iframe id="pdf-viewer"></iframe>
             </div>
         </section>
 
-        <aside id="annotations-section">
-            <h2 class="text-xl font-semibold mb-4">Notes & Highlights</h2>
+        <aside id="annotations-section" class="w-full md:w-auto"> <!-- Full width on small, auto on md+ -->
+            <h2 class="text-xl font-semibold mb-4 p-2 md:p-4">Notes & Highlights</h2>
             
-            <form id="annotationForm" class="mb-6 p-4 border border-gray-200 rounded-lg shadow-sm bg-gray-50">
+            <form id="annotationForm" class="mb-6 p-2 md:p-4 border-y md:border-y-0 md:border-none border-gray-200 shadow-sm bg-gray-50 md:bg-transparent">
                 <input type="hidden" id="annotationId" name="annotationId">
                 <div>
                     <label for="annotationPage" class="block text-sm font-medium text-gray-700">Page Number:</label>
@@ -82,16 +96,17 @@
                     <label for="annotationColor" class="block text-sm font-medium text-gray-700">Color (for highlights):</label>
                     <input type="color" id="annotationColor" name="color" value="#FFFF00" class="mt-1 block w-full h-10 border-gray-300 rounded-md shadow-sm">
                 </div>
-                <button type="submit" id="saveAnnotationBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Save Annotation</button>
+                <button type="submit" id="saveAnnotationBtn" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors">Save Annotation</button>
             </form>
 
-            <div id="annotationsList" class="space-y-3">
+            <div id="annotationsList" class="space-y-3 p-2 md:p-0"> <!-- Added padding for small screens -->
                 <!-- Annotations will be dynamically inserted here -->
             </div>
         </aside>
     </div>
     
-    <div id="error-message" style="display: none;"></div>
+    <div id="error-message" class="fixed bottom-0 right-0 m-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg shadow-xl" style="display: none;"></div>
+
 
     <script>
         let currentBookId = null; // Store bookId globally for annotation functions

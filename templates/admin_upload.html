@@ -2,67 +2,63 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Admin - Upload Book</title>
+    <title>Admin - Upload Book - Bookworm</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&amp;family=Newsreader%3Awght%40400%3B500%3B700%3B800&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; margin-top: 20px; background-color: #f0f2f5; }
-        .container { width: 500px; padding: 30px; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-        h2 { text-align: center; color: #333; margin-bottom: 20px; font-size: 1.5em; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input[type="text"], input[type="file"] { 
-            width: 100%; 
-            margin-bottom: 15px; 
-            padding: 10px; 
-            border: 1px solid #ccc; 
-            border-radius: 4px; 
-            box-sizing: border-box; 
-        }
-        input[type="file"] { padding: 6px; } /* Slightly less padding for file inputs */
-        button[type="submit"] { 
-            width: 100%; 
-            padding: 12px; 
-            background-color: #28a745; 
-            color: white; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-size: 16px; 
-            font-weight: bold;
-        }
-        button[type="submit"]:hover { background-color: #218838; }
-        .message { margin-top: 20px; text-align: center; font-size: 14px; padding: 10px; border-radius: 4px; }
-        .message.success { background-color: #e6ffed; border: 1px solid #b7ebc9; color: #2f6f4f; }
-        .message.error { background-color: #ffebee; border: 1px solid #f5c6cb; color: #b71c1c; }
-        p { text-align: center; margin-top: 20px; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        .message.success { background-color: #e6ffed; border: 1px solid #b7ebc9; color: #2f6f4f; padding: 10px; border-radius: 4px; margin-top: 1rem; }
+        .message.error { background-color: #ffebee; border: 1px solid #f5c6cb; color: #b71c1c; padding: 10px; border-radius: 4px; margin-top: 1rem; }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h2>Upload New Book</h2>
-        <form id="uploadForm" enctype="multipart/form-data">
-            <div>
-                <label for="title">Title:</label>
-                <input type="text" id="title" name="title" required>
+<body class="bg-[#f0f2f5] flex flex-col items-center justify-center min-h-screen py-8" style='font-family: "Noto Sans", sans-serif;'>
+    <div class="text-center mb-8">
+        <a href="/" class="flex items-center justify-center gap-2 text-[#111418] hover:text-blue-600 transition-colors">
+            <div class="size-8 text-blue-600"> 
+              <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_6_319)"><path d="M8.57829 8.57829C5.52816 11.6284 3.451 15.5145 2.60947 19.7452C1.76794 23.9758 2.19984 28.361 3.85056 32.3462C5.50128 36.3314 8.29667 39.7376 11.8832 42.134C15.4698 44.5305 19.6865 45.8096 24 45.8096C28.3135 45.8096 32.5302 44.5305 36.1168 42.134C39.7033 39.7375 42.4987 36.3314 44.1494 32.3462C45.8002 28.361 46.2321 23.9758 45.3905 19.7452C44.549 15.5145 42.4718 11.6284 39.4217 8.57829L24 24L8.57829 8.57829Z" fill="currentColor"></path></g><defs><clipPath id="clip0_6_319"><rect width="48" height="48" fill="white"></rect></clipPath></defs></svg>
             </div>
-            <div>
-                <label for="author">Author:</label>
-                <input type="text" id="author" name="author">
-            </div>
-            <div>
-                <label for="book_file">Book PDF:</label>
-                <input type="file" id="book_file" name="book_file" accept=".pdf" required>
-            </div>
-            <div>
-                <label for="cover_image_file">Cover Image (Optional):</label>
-                <input type="file" id="cover_image_file" name="cover_image_file" accept="image/*">
-            </div>
-            <button type="submit">Upload Book</button>
-        </form>
-        <div id="message" class="message" style="display: none;"></div> <!-- Hidden by default -->
-        <p><a href="/">Back to Library</a></p>
+            <h1 class="text-[#111418] text-3xl font-bold leading-tight tracking-[-0.015em]" style="font-family: 'Newsreader', serif;">Bookworm</h1>
+        </a>
     </div>
+
+    <div class="bg-white p-8 rounded-lg shadow-xl w-full max-w-lg">
+        <h2 class="text-2xl font-bold text-center text-[#111418] mb-6" style="font-family: 'Newsreader', serif;">Upload New Book</h2>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="mb-4">
+                <label for="title" class="block text-sm font-medium text-gray-700 mb-1">Title:</label>
+                <input type="text" id="title" name="title" required
+                       class="form-input w-full rounded-lg text-[#111418] focus:outline-0 focus:ring-2 focus:ring-blue-500 border border-gray-300 bg-[#f0f2f5] h-10 placeholder:text-[#60748a] px-4 text-base font-normal leading-normal">
+            </div>
+            <div class="mb-4">
+                <label for="author" class="block text-sm font-medium text-gray-700 mb-1">Author:</label>
+                <input type="text" id="author" name="author"
+                       class="form-input w-full rounded-lg text-[#111418] focus:outline-0 focus:ring-2 focus:ring-blue-500 border border-gray-300 bg-[#f0f2f5] h-10 placeholder:text-[#60748a] px-4 text-base font-normal leading-normal">
+            </div>
+            <div class="mb-4">
+                <label for="book_file" class="block text-sm font-medium text-gray-700 mb-1">Book PDF:</label>
+                <input type="file" id="book_file" name="book_file" accept=".pdf" required
+                       class="form-input w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            <div class="mb-6">
+                <label for="cover_image_file" class="block text-sm font-medium text-gray-700 mb-1">Cover Image (Optional):</label>
+                <input type="file" id="cover_image_file" name="cover_image_file" accept="image/*"
+                       class="form-input w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            <button type="submit" class="w-full h-10 px-4 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors">
+                Upload Book
+            </button>
+        </form>
+        <div id="message" class="message text-center text-sm" style="display: none;"></div>
+        <p class="text-center mt-6"><a href="/" class="font-medium text-blue-600 hover:text-blue-500 hover:underline">Back to Library</a></p>
+    </div>
+    <footer class="text-center py-8 text-xs text-gray-500">
+        &copy; 2024 Bookworm Inc. All rights reserved.
+    </footer>
 
     <script>
         document.getElementById('uploadForm').addEventListener('submit', async function(event) {
@@ -71,25 +67,24 @@
             const formData = new FormData(form);
             const messageDiv = document.getElementById('message');
             messageDiv.textContent = ''; 
+            messageDiv.className = 'message text-center text-sm'; // Reset classes
             messageDiv.style.display = 'none'; 
-            messageDiv.className = 'message'; // Reset classes
 
-            // Basic client-side validation for file types (optional but good practice)
+            // Basic client-side validation for file types
             const bookFile = formData.get('book_file');
-            if (bookFile && bookFile.name && !bookFile.name.toLowerCase().endsWith('.pdf')) {
+            if (bookFile && bookFile.size > 0 && !bookFile.name.toLowerCase().endsWith('.pdf')) {
                 messageDiv.textContent = 'Error: Book file must be a PDF.';
-                messageDiv.className = 'message error';
+                messageDiv.classList.add('error');
                 messageDiv.style.display = 'block';
                 return;
             }
             const coverFile = formData.get('cover_image_file');
-            if (coverFile && coverFile.name && !coverFile.type.startsWith('image/')) {
+            if (coverFile && coverFile.size > 0 && !coverFile.type.startsWith('image/')) {
                  messageDiv.textContent = 'Error: Cover file must be an image.';
-                 messageDiv.className = 'message error';
+                 messageDiv.classList.add('error');
                  messageDiv.style.display = 'block';
                  return;
             }
-
 
             const response = await fetch('/admin/upload_book', {
                 method: 'POST',
@@ -98,15 +93,15 @@
             });
 
             const result = await response.json();
-            messageDiv.style.display = 'block'; // Show message div
+            messageDiv.style.display = 'block';
 
             if (response.ok) {
                 messageDiv.textContent = 'Success: ' + result.message + (result.book_id ? ` (Book ID: ${result.book_id})` : '');
-                messageDiv.className = 'message success';
+                messageDiv.classList.add('success');
                 form.reset(); 
             } else {
                 messageDiv.textContent = 'Error: ' + (result.message || 'Upload failed. Please check server logs.');
-                messageDiv.className = 'message error';
+                messageDiv.classList.add('error');
             }
         });
     </script>

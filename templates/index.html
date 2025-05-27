@@ -263,13 +263,13 @@
                     const data = await response.json();
                     if (data.logged_in) {
                         let adminLink = '';
-                        if (data.user.id === 1) { // Check if user is admin
+                        if (data.user.is_admin) { // Changed to use data.user.is_admin
                             adminLink = `<a href="/admin/upload-page" class="text-[#111418] hover:text-blue-600 text-sm font-bold ml-2">Upload Book</a>`;
                         }
                         authControls.innerHTML = `
                             <span class="text-[#111418] text-sm font-medium mr-2">Hi, ${data.user.username}</span>
                             <button id="logoutBtn" class="text-[#111418] hover:text-blue-600 text-sm font-bold">Logout</button>
-                            ${adminLink}`; // Add admin link here
+                            ${adminLink}`;
                         document.getElementById('logoutBtn').addEventListener('click', async () => {
                             await fetch('/logout', { method: 'POST' });
                             window.location.reload();

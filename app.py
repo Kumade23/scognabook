@@ -2,6 +2,7 @@ from flask import Flask, render_template, send_from_directory, request, jsonify,
 import os
 import uuid # For unique filenames
 import json # For handling JSON data for coordinates
+import fitz # PyMuPDF
 from werkzeug.utils import secure_filename
 from datetime import datetime # For uploaded_at timestamp
 from flask_sqlalchemy import SQLAlchemy
@@ -30,6 +31,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256)) # Increased length for robust hashes
+    is_admin = db.Column(db.Boolean, nullable=False, default=False) # New field
     books_uploaded = db.relationship('Book', backref='uploader', lazy='dynamic')
     annotations = db.relationship('Annotation', backref='annotator', lazy='dynamic')
 
@@ -84,6 +86,13 @@ def signup():
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
+
+    # Make the first user an admin
+    if User.query.count() == 1:
+        new_user.is_admin = True
+        db.session.commit()
+        return jsonify({'message': 'User created successfully. First user registered as admin.'}), 201
+    
     return jsonify({'message': 'User created successfully'}), 201
 
 @app.route('/login', methods=['POST'])
@@ -118,7 +127,8 @@ def check_session():
             'user': {
                 'username': current_user.username, 
                 'email': current_user.email,
-                'id': current_user.id
+                'id': current_user.id,
+                'is_admin': current_user.is_admin # Added is_admin status
             }
         }), 200
     else:
@@ -141,16 +151,22 @@ def index():
 # Route to serve uploaded files (e.g., PDFs) - will be used later
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    # Construct the absolute path to the UPLOAD_FOLDER
+    # app.root_path is the path to the directory where the application file (app.py) is.
+    directory = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'])
+    return send_from_directory(directory, filename)
 
 @app.route('/uploads/covers/<filename>')
 def uploaded_cover_file(filename):
-    return send_from_directory(app.config['COVERS_FOLDER'], filename)
+    # Construct the absolute path to the COVERS_FOLDER
+    # app.config['COVERS_FOLDER'] should be 'uploads/covers'
+    directory = os.path.join(app.root_path, app.config['COVERS_FOLDER'])
+    return send_from_directory(directory, filename)
 
 @app.route('/admin/upload_book', methods=['POST'])
 @login_required
 def upload_book():
-    if current_user.id != 1: # Simple admin check: only user with ID 1
+    if not current_user.is_admin: # Changed to use is_admin
         return jsonify({'message': 'Admin access required'}), 403
 
     if 'book_file' not in request.files:
@@ -173,21 +189,44 @@ def upload_book():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
         file.save(file_path)
 
-        # Handle cover image (optional)
-        cover_filename_to_save = None
-        if 'cover_image_file' in request.files:
+        # Handle cover image: user-provided or generated
+        cover_filename_to_save = None 
+
+        covers_abs_path = os.path.join(app.root_path, app.config['COVERS_FOLDER'])
+        if not os.path.exists(covers_abs_path):
+            os.makedirs(covers_abs_path) # Ensure COVERS_FOLDER exists
+
+        if 'cover_image_file' in request.files and request.files['cover_image_file'].filename != '':
             cover_file = request.files['cover_image_file']
-            if cover_file.filename != '':
-                original_cover_filename = secure_filename(cover_file.filename)
-                # Ensure covers are stored, perhaps in a subfolder or with a prefix
-                unique_cover_filename = str(uuid.uuid4()) + "_" + original_cover_filename
-                # Save to app.config['COVERS_FOLDER']
-                cover_path = os.path.join(app.config['COVERS_FOLDER'], unique_cover_filename)
-                cover_file.save(cover_path)
-                cover_filename_to_save = unique_cover_filename # Store only the filename
+            # User provided a cover image
+            original_cover_filename = secure_filename(cover_file.filename)
+            # Prefix to distinguish user-uploaded from generated, and add UUID
+            unique_cover_filename = "user_" + str(uuid.uuid4()) + "_" + original_cover_filename
+            
+            cover_path = os.path.join(covers_abs_path, unique_cover_filename)
+            cover_file.save(cover_path)
+            cover_filename_to_save = unique_cover_filename
+        else:
+            # No cover image provided by user, try to generate from PDF's first page
+            if file and file_path: # Ensure PDF was uploaded and its path is known
+                try:
+                    pdf_document = fitz.open(file_path) # file_path is absolute path to the saved PDF
+                    if pdf_document.page_count > 0:
+                        first_page = pdf_document.load_page(0) 
+                        pix = first_page.get_pixmap(dpi=150) 
+                        
+                        generated_cover_filename = "generated_" + str(uuid.uuid4()) + ".png"
+                        generated_cover_path = os.path.join(covers_abs_path, generated_cover_filename)
+                        
+                        pix.save(generated_cover_path) 
+                        cover_filename_to_save = generated_cover_filename
+                    pdf_document.close()
+                except Exception as e:
+                    print(f"Error generating cover from PDF: {e}")
+                    # cover_filename_to_save remains None, or you could set a default placeholder filename
 
         new_book = Book(
-            title=title, 
+            title=title,
             author=author, 
             filename=unique_filename, 
             cover_image_filename=cover_filename_to_save,
@@ -374,10 +413,13 @@ def delete_annotation(annotation_id):
 @app.route('/admin/upload-page')
 @login_required
 def admin_upload_page():
-    if current_user.id == 1: # Admin check
+    if not current_user.is_admin: # Changed to use is_admin
+        return render_template('admin_upload.html') # Should be an error or redirect
+    # Corrected: render admin_upload.html only if admin, else redirect.
+    # The original logic was inverted.
+    if current_user.is_admin:
         return render_template('admin_upload.html')
     else:
-        # Non-admin users are redirected, or you can show an error page
         return redirect(url_for('index'))
 
 
