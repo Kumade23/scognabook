@@ -270,6 +270,12 @@ def get_books():
         })
     return jsonify(books_list), 200
 
+@app.route('/read')
+@login_required
+def read_book_page_route():
+    # The book_id will be extracted from query parameters by JavaScript in read_book_page.html
+    return render_template('read_book_page.html')
+
 @app.route('/book_details/<int:book_id>', methods=['GET'])
 @login_required
 def get_book_details(book_id):

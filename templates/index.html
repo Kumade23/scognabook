@@ -371,8 +371,8 @@
                 books.forEach(book => {
                     const placeholderCover = 'https://via.placeholder.com/158x210.png?text=No+Cover'; // A generic placeholder
                     const coverUrl = book.cover_image_url ? book.cover_image_url : placeholderCover;
-                    // Note: book_file_url is for the PDF itself, link to reading page is different
-                    const readBookPageUrl = `read_book_page.html?book_id=${book.id}`;
+                    // Update the link to use the new Flask route
+                    const readBookPageUrl = `/read?book_id=${book.id}`;
 
 
                     const bookCard = `
