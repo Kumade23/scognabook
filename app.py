@@ -279,11 +279,15 @@ def read_book_page_route():
 @app.route('/book_details/<int:book_id>', methods=['GET'])
 @login_required
 def get_book_details(book_id):
-    book = Book.query.get(book_id)
-    if not book:
-        return jsonify({'message': 'Book not found'}), 404
+    book = Book.query.get_or_404(book_id) # Use get_or_404
 
-    book_file_url = url_for('uploaded_file', filename=book.filename, _external=False)
+    if not book.filename: # Explicit check for missing filename
+        # app.logger is available by default in Flask
+        app.logger.error(f"Book with ID {book.id} ('{book.title}') is missing a filename.")
+        return jsonify({'message': 'Book data is incomplete on the server. Filename is missing.'}), 500
+
+    book_file_url = url_for('uploaded_file', filename=book.filename, _external=False) 
+    # _external=False is the default and appropriate here for relative URLs.
     
     return jsonify({
         'id': book.id,

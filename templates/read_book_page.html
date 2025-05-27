@@ -177,10 +177,13 @@
                 }
 
             } catch (error) {
-                console.error('Failed to load book:', error);
+                // Enhanced error logging
+                console.error(`Failed to load book with ID ${currentBookId}:`, error); 
                 bookTitleEl.textContent = 'Error Loading Book';
-                errorMessageEl.textContent = error.message;
-                errorMessageEl.style.display = 'block';
+                errorMessageEl.textContent = error.message || 'An unknown error occurred while loading the book.';
+                errorMessageEl.style.display = 'block'; // Ensure error message is visible
+                
+                // const viewerContainer = document.getElementById('pdf-viewer-container'); // Already defined above
                 if(viewerContainer) viewerContainer.style.display = 'none';
                 if(annotationsSection) annotationsSection.style.display = 'none';
             }
